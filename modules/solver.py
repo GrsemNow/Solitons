@@ -18,19 +18,27 @@ def make_bps_res(params, rho_grid):
     return res
 
 
-def bisection(f, a, b, tol=1e-6, max_iter=100):
+def root_search(f, param, method=bisection ,tol=1e-6, max_iter=100):
+    gen = method(f, **params)
+    for i in range(max_iter):
+        flag, x, fx, err = next(gen) # выполнение значение невязка шаг
+        
+        if not flag:
+            raise Exception('выроджение')
+
+        if fx < tol or err < tol:
+            return x
+    raise Exception("не сходится")
+
+
+def bisection(f, a, b):
     fa = f(a)
     fb = f(b)
-   
-    if fa * fb > 0:
-        raise ValueError("одного знака")
-    
-    for i in range(max_iter):
+    while True:
         c = (a+b) / 2.0
         fc = f(c)
-
-        if abs(fc) < tol or (b-a)/2.0 < tol:
-            return c
+        
+        yield True, c, abs(fc), (b-a) / 2.0
 
         if fa * fc < 0:
             b = c
@@ -39,5 +47,43 @@ def bisection(f, a, b, tol=1e-6, max_iter=100):
             a = c
             fa = fc
         
-    return (a + b) / 2.0
+'''
+def newton_1d(f, x0, h=1e-7):
+    x = x0
     
+    while True:
+        fx = f(x)
+        dfx = (f(x+h) - f(x-h)) / (2 * h)
+
+        xn = x - fx/dfx
+
+        yield xn, abd(fx), abs(xn-x)
+
+        x = xn
+'''
+
+def newton(f, x0, h=1e-7):
+    x = np.asarray(x0)
+    n = x.size
+
+    while True:
+        fx = np.asarray(f(x))
+        J = np.zeros((n, n))
+
+        for i in range(n):
+            dx = np.zeros(n)
+            dx[i] = h 
+
+            J[:, i] = (np.asarray(f(x+dx)) - np.asarray(f(x-dx))) / (2 * h)
+        det = np.linalg.det(J)
+
+        if abs(det) < 1e-15:
+            yield False, (0, 0, 0)
+        
+        step = np.linalg.solve(J, -fx)
+
+        xn = x + step
+        yield True, xn, np.linalg.norm(fx), np.linalg.norm(step)
+
+        x = xn
+
